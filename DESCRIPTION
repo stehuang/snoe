@@ -1,0 +1,18 @@
+Package: nleo
+Title: Causal Discovery Algorithm for Nonlinear, Gaussian Data
+Version: 1.0.0
+Authors@R: c(
+    person(given = "Stella",
+           family = "Huang",
+           email = "stellahyh@g.ucla.edu",
+           role = c("aut", "cre")))
+Description: A likelihood ratio test for learning nonlinear, gaussian data generated from Causal Additive Noise Models. This algorithm consists of four stages: learning the initial CPDAG, determining the orientation of undirected edges, removing superfluous edges, and converting a PDAG to a DAG.
+License: GPL (>= 3)
+Encoding: UTF-8
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 7.3.2
+Imports: 
+    bnlearn,
+    infotheo,
+    mgcv,
+    VGAM
