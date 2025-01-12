@@ -15,6 +15,9 @@ get_gam_formula(y, x, k, smooth_fx = "tp")
 
 \item{smooth_fx}{basis function used}
 }
+\value{
+formula type object
+}
 \description{
 Builds GAM formula to be used in gam()
 }

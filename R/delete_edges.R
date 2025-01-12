@@ -56,7 +56,7 @@ drop_arc = function(dag, node1, node2, p_value, dsep_set){
 #' @param k number of basis functions for smoothing splines in GAM
 #' @param smooth_fx basis function used
 #'
-#' @return
+#' @return formula type object
 #' @export
 #'
 #' @examples

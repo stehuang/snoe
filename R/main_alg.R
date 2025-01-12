@@ -12,10 +12,11 @@
 #' @param train_ratio percentage of data used for training dataset
 #' @param standardized standardize data or not?
 #'
-#' @return
+#' @return adjacency matrix of learned DAG
 #' @export
 #'
 #' @examples
+#' nleo(data)
 nleo <- function(data, skel_alpha=0.25, test_alpha=0.05, covar_alpha=0.00001,
                  ll_test_approach="5_5", train_ratio=0.5, standardized=T){
   # 1. estimate skeleton

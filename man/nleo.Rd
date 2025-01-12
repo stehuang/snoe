@@ -29,6 +29,12 @@ nleo(
 
 \item{standardized}{standardize data or not?}
 }
+\value{
+adjacency matrix of learned DAG
+}
 \description{
 Function for running the full algorithm
+}
+\examples{
+nleo(data)
 }
