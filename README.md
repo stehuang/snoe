@@ -32,12 +32,7 @@ devtools::install_github("stehuang/nleo")
 	4. (For practical purposes) Graph refinement: converts previous output from PDAG to DAG by applying the likelihood test to undirected edges, if there exists any
 
 
-## Running the Code
-
-- See file `test_script.R` for an example
-	- shows and evaluates results from all 4 steps
-	- returns F1 score, SHD, breakdown of learned edges, and runtime
-
+## Example
 
 ## Dependencies
 
@@ -46,7 +41,7 @@ This algorithm utilizes functions from various packages, with the main ones bein
 - package `bnlearn`: modifications made by building upon the PC algorithm, finding conditional independence relations, learning edge orientations, and evaluating learned graphs
 - package `mgcv`: implemented Generalized Additive Models (GAM) as our choice of the regression method
 - package `infotheo`: discretizes the data and calculated the pairwise mutual information between two variables for the conditional independence test in the PC algorithm
-- package `phsl`: uses few functions for learning edge orientations in the initial stage
+
 
 
 

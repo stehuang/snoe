@@ -289,7 +289,7 @@ ll_orient_test <- function(data, train_ratio=0.5, ll_test_approach="2fold", adjm
     # 5/5 split, one test
     gam_XtoY <- gam.pa.fit(train_data, adjmat, nodelabels=colnames(data), pa_node=pa_ind, ch_node=ch_ind, k=k_basis)
     gam_YtoX <- gam.pa.fit(train_data, adjmat, nodelabels=colnames(data), pa_node=ch_ind, ch_node=pa_ind, k=k_basis)
-    arc_est <- get_edge_dir(gam_XtoY[[1]], gam_YtoX[[1]], gam_XtoY[[2]], gam_YtoX[[2]], test_data = test_data, penalty=NULL)
+    arc_est <- get_edge_dir(gam_XtoY[[1]], gam_YtoX[[1]], gam_XtoY[[2]], gam_YtoX[[2]], test_data = test_data)
   }
   return(arc_est)
 }
