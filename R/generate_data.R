@@ -280,7 +280,7 @@ nodedatagen = function(n = NULL, Xinv = matrix(numeric(0),0,0), Xninv = matrix(n
 #'
 #' @return DAG object of class bnlearn
 #' @examples
-#' DAGdatagen(n=1000, dag_amat=amat)
+#' DAGdatagen(n=1000, dag_amat=amat, nodeN=10)
 #' @export
 
 DAGdatagen = function(n = NULL, dag_amat = NULL, nodeN = NULL, labels = NULL, dagSparsityProb = NULL,

@@ -56,5 +56,5 @@ Users may specify function types
 If no DAG is provided, then function randomly generates a DAG
 }
 \examples{
-DAGdatagen(n=1000, dag_amat=amat)
+DAGdatagen(n=1000, dag_amat=amat, nodeN=10)
 }

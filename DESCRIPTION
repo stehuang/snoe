@@ -13,6 +13,14 @@ Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.3.2
 Imports: 
     bnlearn,
+    ccdrAlgorithm,
     infotheo,
     mgcv,
+    phsl,
+    sparsebnUtils,
     VGAM
+URL: https://github.com/stehuang/nleo, https://stehuang.github.io/nleo/
+BugReports: https://github.com/stehuang/nleo/issues
+Suggests: 
+    testthat (>= 3.0.0)
+Config/testthat/edition: 3
