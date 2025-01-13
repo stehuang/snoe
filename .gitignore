@@ -9,3 +9,5 @@ nleo.Rproj
 .DS_Store
 .quarto
 docs
+
+_pkgdown.yml
