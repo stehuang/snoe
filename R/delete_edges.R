@@ -83,7 +83,6 @@ get_gam_formula <- function(y, x, k, smooth_fx="tp"){
 #'
 #' @param data observed data
 #' @param curr_amat adjacency matrix of graph object
-#' @param standardized standardize data or not
 #' @param nodelabels vector of node names
 #' @param alpha significance level for covariate testing
 #'
@@ -92,14 +91,9 @@ get_gam_formula <- function(y, x, k, smooth_fx="tp"){
 #' prune_dag(data, curr_amat, alpha)
 #' @export
 #'
-prune_dag <- function(data, curr_amat, alpha=0.00001, standardized=FALSE, nodelabels=colnames(data)){
+prune_dag <- function(data, curr_amat, alpha=0.00001, nodelabels=colnames(data)){
 
   start_time = Sys.time()
-
-  # standardize data if needed
-  if(standardized==FALSE){
-    data <- apply(data, 2, function(x) if(is.numeric(x)){scale(x, center=TRUE, scale=TRUE)} else x)
-  }
   data <- as.data.frame(data)
 
   # create bnlearn object
@@ -130,7 +124,7 @@ prune_dag <- function(data, curr_amat, alpha=0.00001, standardized=FALSE, nodela
                          error=function(e) e, warning=function(w) w)
     if(!is(temp_dag, 'error')){
       found_dag <- TRUE
-      node_order <- names(topological.sort(as.igraph(temp_dag)))
+      node_order <- names(igraph::topo_sort(bnlearn::as.igraph(temp_dag)))
     }
   }
 
@@ -147,7 +141,7 @@ prune_dag <- function(data, curr_amat, alpha=0.00001, standardized=FALSE, nodela
     curr_node_pa <- curr_node_pa[,1] # col of parent/neighbor nodes
     # run gam model
     fm <- get_gam_formula(curr_node, curr_node_pa, k_basis)
-    m1 <- gam(fm, method = "REML", optimizer = c("outer","newton"), select = TRUE, data=as.data.frame(data), gam.control=gam.control.param)
+    m1 <- mgcv::gam(fm, method = "REML", optimizer = c("outer","newton"), select = TRUE, data=as.data.frame(data), gam.control=gam.control.param)
     # check if any variable is insignificant, remove edge if so
     m1_pval <- summary(m1)$s.table[,4]
     insig_edges <- which(m1_pval >= alpha)

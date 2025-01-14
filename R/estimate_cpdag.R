@@ -65,7 +65,6 @@ get_dsep_set <- function(adjmat, nodelabels=rownames(adjmat)){
 #' Learns a dense CPDAG from data; skeleton is estimated under a relaxed threshold, and conditional indep relations are detected using a strigent threshold
 #'
 #' @param data observed data
-#' @param standardized standardize data or not
 #' @param learning_alg options are "PC" or "ccdr"
 #' @param pc_params parameters to pass into PC algorithm; alpha is threshold for CI tests for v-structure detection, alpha_dense is for learning the skeleton
 #' @param ccdr_pc_alpha estimates CPDAG from PC to determine size of DAG from ccdr
@@ -81,16 +80,13 @@ get_dsep_set <- function(adjmat, nodelabels=rownames(adjmat)){
 #'
 #'
 
-estimate_cpdag <- function(data, nodelabels=colnames(data), standardized=FALSE, cluster=NULL,
+estimate_cpdag <- function(data, nodelabels=colnames(data), cluster=NULL,
                            learning_alg='PC', pc_params=list(alpha=0.01, alpha_dense=0.25, test='cor'), ccdr_pc_alpha = 0.01,
                            ccdr_params=list(pc_alpha=ccdr_pc_alpha, lambdas.length=15, gamma=2, max.iters = sparsebnUtils::default_max_iters(ncol(data)),
                                             ccdr_alpha = sparsebnUtils::default_alpha(), error.tol = 1e-4, verbose=FALSE), debug=FALSE){
   start_time = Sys.time()
 
   # standardize data if needed
-  if(standardized==FALSE){
-    data <- apply(data, 2, function(x) if(is.numeric(x)){scale(x, center=TRUE, scale=TRUE)} else x)
-  }
   data <- as.data.frame(data)
   data <- bnlearn:::check.data(data, allow.missing = TRUE)
 

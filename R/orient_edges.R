@@ -20,7 +20,7 @@ gam.residuals <- function(data, adjmat, nodelabels, k, use_nbrs=FALSE){
     if(sum(pa_nodes)) {
       fm = paste(nodelabels[i], "~", paste("s(", pa_nodes, ", k=", k, ", bs='tp')",
                                            sep = "", collapse = " + "))
-      gfit = gam(formula = as.formula(fm), data = as.data.frame(data), optimizer = c("outer","newton"),
+      gfit = mgcv::gam(formula = as.formula(fm), data = as.data.frame(data), optimizer = c("outer","newton"),
                  select = TRUE, gam.control=gam.control.param, debug=TRUE)
       dat_rsd[, i] = gfit$residuals
     }
@@ -36,7 +36,7 @@ fit_gam_reg <- function(data, pa_nodes, ch_node, k){
   if(length(pa_nodes) > 0) {
     fm = paste(ch_node, "~", paste("s(", pa_nodes, ", k=", k, ", bs='tp')",
                                    sep = "", collapse = " + "))
-    main_gfit = gam(formula = as.formula(fm), data = as.data.frame(data), optimizer = c("outer","newton"),
+    main_gfit = mgcv::gam(formula = as.formula(fm), data = as.data.frame(data), optimizer = c("outer","newton"),
                     select = TRUE, gam.control=gam.control.param, debug=TRUE)
   }else{
     # main_gfit <- data[,ch_node]
@@ -169,8 +169,8 @@ count_common_nbr <- function(adjmat, udr_edges, existing_nbr=NULL){
 compute_mi_std <- function(var1, var2, disc_method='equalwidth', nbins=20){
   disc_var1 <- as.vector(infotheo::discretize(var1,disc=disc_method, nbins=nbins)$X)
   disc_var2 <- as.vector(infotheo::discretize(var2,disc=disc_method, nbins=nbins)$X)
-  var1_entropy <- entropy(disc_var1)
-  var2_entropy <- entropy(disc_var1)
+  var1_entropy <- infotheo::entropy(disc_var1)
+  var2_entropy <- infotheo::entropy(disc_var1)
   mi_std <- infotheo::mutinformation(X=disc_var1, Y=disc_var2)/min(var1_entropy, var2_entropy)
   return(mi_std)
 }

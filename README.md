@@ -34,6 +34,22 @@ devtools::install_github("stehuang/nleo")
 
 ## Example
 
+Below is an example to generate data given a DAG, learn a DAG using the algorithm, and evaluating the results
+
+```{r}
+# generate data
+true.dag <- get_true_dag("asia")
+data <- DAGdatagen(n = 1000, dag_amat=amat(true.dag), data_fx='inv', ninv.method="random", se=0.5)$DAGdata
+
+# run algorithm
+adjmat <- nleo(data=data, ll_test_approach="5_5")
+
+# compare with ground truth
+learning_res <- get_f1(amat(true.dag), list(adjmat))
+names(learning_res) <- c("shd", "f1", "tp", "fp", "fn", "wrong_dir", "wrong_dir_undir", "n_undir")
+print(learning_res)
+```
+
 ## Dependencies
 
 This algorithm utilizes functions from various packages, with the main ones being:
