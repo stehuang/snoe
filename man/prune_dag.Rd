@@ -4,13 +4,7 @@
 \alias{prune_dag}
 \title{STEP 3 OF ALGORITHM: Delete superfluous edges from PDAG to result in DAG}
 \usage{
-prune_dag(
-  data,
-  curr_amat,
-  alpha = 1e-05,
-  standardized = FALSE,
-  nodelabels = colnames(data)
-)
+prune_dag(data, curr_amat, alpha = 1e-05, nodelabels = colnames(data))
 }
 \arguments{
 \item{data}{observed data}
@@ -18,8 +12,6 @@ prune_dag(
 \item{curr_amat}{adjacency matrix of graph object}
 
 \item{alpha}{significance level for covariate testing}
-
-\item{standardized}{standardize data or not}
 
 \item{nodelabels}{vector of node names}
 }

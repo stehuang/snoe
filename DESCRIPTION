@@ -1,12 +1,12 @@
-Package: nleo
-Title: Causal Discovery Algorithm for Nonlinear, Gaussian Data
+Package: sneo
+Title: Nonlinear Causal Learning Through Sequential Edge Orientation
 Version: 1.0.0
 Authors@R: c(
     person(given = "Stella",
            family = "Huang",
            email = "stellahyh@g.ucla.edu",
            role = c("aut", "cre")))
-Description: A likelihood ratio test for learning nonlinear, gaussian data generated from Causal Additive Noise Models. This algorithm consists of four stages: learning the initial CPDAG, determining the orientation of undirected edges, removing superfluous edges, and converting a PDAG to a DAG.
+Description: A sequential edge orientation procedure for learning nonlinear, gaussian data generated from Causal Additive Noise Models. This algorithm consists of four stages: learning the initial CPDAG, determining the orientation of undirected edges, removing superfluous edges, and converting a PDAG to a DAG.
 License: GPL (>= 3)
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
@@ -20,8 +20,8 @@ Imports:
     phsl,
     sparsebnUtils,
     VGAM
-URL: https://github.com/stehuang/nleo, https://stehuang.github.io/nleo/
-BugReports: https://github.com/stehuang/nleo/issues
+URL: https://github.com/stehuang/sneo, https://stehuang.github.io/sneo/
+BugReports: https://github.com/stehuang/sneo/issues
 Suggests: 
     testthat (>= 3.0.0)
 Config/testthat/edition: 3

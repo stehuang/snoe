@@ -7,7 +7,6 @@
 estimate_cpdag(
   data,
   nodelabels = colnames(data),
-  standardized = FALSE,
   cluster = NULL,
   learning_alg = "PC",
   pc_params = list(alpha = 0.01, alpha_dense = 0.25, test = "cor"),
@@ -22,8 +21,6 @@ estimate_cpdag(
 \item{data}{observed data}
 
 \item{nodelabels}{vector of variable names}
-
-\item{standardized}{standardize data or not}
 
 \item{cluster}{use cluster for computing or not (bnlearn function argument)}
 

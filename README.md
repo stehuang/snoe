@@ -1,6 +1,6 @@
 
 
-# Nonlinear Causal Learning Algorithm
+# Sequential Nonlinear Edge Orientation (SNEO)
 
 R package for a causal discovery method focused on learning non-linear relations from data
 
@@ -11,7 +11,7 @@ Author: Stella Huang (stellahyh@g.ucla.edu)
 Install this package from Github by running the following code in R:
 
 ```r
-devtools::install_github("stehuang/nleo")
+devtools::install_github("stehuang/sneo")
 ```
 
 ## Summary
@@ -42,7 +42,8 @@ true.dag <- get_true_dag("asia")
 data <- DAGdatagen(n = 1000, dag_amat=amat(true.dag), data_fx='inv', ninv.method="random", se=0.5)$DAGdata
 
 # run algorithm
-adjmat <- nleo(data=data, ll_test_approach="5_5")
+# `ll_test_approach` options are sample-splitting (SS) or cross-validation (CV)
+adjmat <- sneo(data=data, ll_test_approach="SS")
 
 # compare with ground truth
 learning_res <- get_f1(amat(true.dag), list(adjmat))

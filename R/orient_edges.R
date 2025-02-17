@@ -269,13 +269,13 @@ compute_panm_indep <- function(data, adjmat, curr_edge, k, train_ratio=0.5,
 #' ll_orient_test(data, ll_test_approach='55', adjmat=adjmat, pa_ind=2, ch_ind=5)
 #' @export
 
-ll_orient_test <- function(data, train_ratio=0.5, ll_test_approach="2fold", adjmat, pa_ind, ch_ind, k_basis){
+ll_orient_test <- function(data, train_ratio=0.5, ll_test_approach="SS", adjmat, pa_ind, ch_ind, k_basis){
   # train/test split
   train_index <- sample(c(1:nrow(data)), size=nrow(data)*train_ratio, replace = FALSE)
   train_data <- as.data.frame(base::apply(data[train_index,], MARGIN = 2, FUN = base::scale))
   test_data <- as.data.frame(base::apply(data[-train_index,], MARGIN = 2, FUN = base::scale))
 
-  if(ll_test_approach=="2fold"){
+  if(ll_test_approach=="CV"){
     # parent node is the node in col 1
     # first fold
     gam_XtoY_m1 <- gam.pa.fit(train_data, adjmat, nodelabels=colnames(data), pa_node=pa_ind, ch_node=ch_ind, k=k_basis)
