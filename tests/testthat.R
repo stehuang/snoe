@@ -8,5 +8,6 @@
 
 library(testthat)
 library(sneo)
+library(bnlearn)
 
 test_check("sneo")

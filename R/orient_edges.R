@@ -338,7 +338,7 @@ orient_edge = function(data, curr_amat, nodelabels = colnames(data), alpha = 0.0
                        train_ratio=0.5, ll_test_approach=NULL){
   # extract adjacency matrix
   adjmat = curr_amat
-  curr_cpdag = empty.graph(colnames(curr_amat))
+  curr_cpdag = bnlearn::empty.graph(colnames(curr_amat))
   amat(curr_cpdag) = curr_amat
 
   # check if this is already a DAG; screen for undirected edges

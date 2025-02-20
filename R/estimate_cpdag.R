@@ -111,10 +111,9 @@ estimate_cpdag <- function(data, nodelabels=colnames(data), cluster=NULL,
                                                     blacklist=NULL, whitelist=NULL, max.sx = 3, debug=debug,
                                                     test=test, alpha=pc_alpha, vs=NULL)
     pdag_amat <- bnlearn:::arcs2amat(dense_skeleton_obj$arcs, colnames(data))
-    init_cpdag <- empty.graph(nodelabels)
-    amat(init_cpdag, check.cycles=FALSE) <- pdag_amat
+    init_cpdag <- bnlearn::empty.graph(nodelabels)
+    bnlearn::amat(init_cpdag, check.cycles=FALSE) <- pdag_amat
 
-    # add directed edges to whitelist (ensures edge is strongly protected)
     init_cpdag$learning$whitelist <- bnlearn::directed.arcs(init_cpdag)
     end_time_est = Sys.time()
   }else{ # run sparsebn to obtain initial cpdag
@@ -142,7 +141,7 @@ estimate_cpdag <- function(data, nodelabels=colnames(data), cluster=NULL,
   }
   end_time = Sys.time()
   total_time <- as.numeric(end_time - start_time, unit = "secs")
-  return(amat = amat(init_cpdag))
+  return(amat = bnlearn::amat(init_cpdag))
 }
 
 
@@ -272,7 +271,7 @@ learn_arc_directions_pdag <- function (x, cluster = NULL, local.structure, white
                                    debug = debug)
   }
   learning = list(whitelist = whitelist, blacklist = blacklist,
-                  test = test, args = list(alpha = alpha), ntests = test.counter())
+                  test = test, args = list(alpha = alpha), ntests = bnlearn:::test.counter())
   if (!is.null(B)) learning$args$B = B
   pdag = list(learning = learning, nodes = structure(rep(0, length(nodes)), names = nodes), arcs = arcs, vs=vs)
   # orient edges

@@ -233,7 +233,7 @@ DAGdatagen = function(n = NULL, dag_amat = NULL, nodeN = nrow(dag_amat), labels 
   }else{
     colnames(dag_amat) <- labels
     dag.bn = bnlearn::empty.graph(colnames(dag_amat))
-    amat(dag.bn) = dag_amat
+    bnlearn::amat(dag.bn) = dag_amat
     nodeN = length(dag.bn$nodes)
     labels = names(dag.bn$nodes)
   }

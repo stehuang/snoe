@@ -42,7 +42,7 @@ true.dag <- get_true_dag("asia")
 data <- DAGdatagen(n = 1000, dag_amat=amat(true.dag), data_fx='inv', ninv.method="random", se=0.5)$DAGdata
 
 # run algorithm
-# `ll_test_approach` options are sample-splitting (SS) or cross-validation (CV)
+# `ll_test_approach` options: sample-splitting (SS) or cross-validation (CV)
 adjmat <- sneo(data=data, ll_test_approach="SS")
 
 # compare with ground truth
