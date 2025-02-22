@@ -16,8 +16,8 @@
 #' @export
 #'
 #' @examples
-#' sneo(data)
-sneo <- function(data, skel_alpha=0.25, test_alpha=0.05, covar_alpha=0.00001,
+#' snoe(data)
+snoe <- function(data, skel_alpha=0.25, test_alpha=0.05, covar_alpha=0.00001,
                  ll_test_approach="SS", train_ratio=0.5, standardized=T){
   if(standardized){
     data <- apply(data, 2, function(x) if(is.numeric(x)){scale(x, center=TRUE, scale=TRUE)} else x)

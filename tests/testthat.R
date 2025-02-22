@@ -7,7 +7,7 @@
 # * https://testthat.r-lib.org/articles/special-files.html
 
 library(testthat)
-library(sneo)
+library(snoe)
 library(bnlearn)
 
-test_check("sneo")
+test_check("snoe")

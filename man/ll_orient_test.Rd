@@ -7,7 +7,7 @@
 ll_orient_test(
   data,
   train_ratio = 0.5,
-  ll_test_approach = "2fold",
+  ll_test_approach = "SS",
   adjmat,
   pa_ind,
   ch_ind,

@@ -1,4 +1,4 @@
-Package: sneo
+Package: snoe
 Title: Nonlinear Causal Learning Through Sequential Edge Orientation
 Version: 1.0.0
 Authors@R: c(
@@ -6,7 +6,7 @@ Authors@R: c(
            family = "Huang",
            email = "stellahyh@g.ucla.edu",
            role = c("aut", "cre")))
-Description: A sequential edge orientation procedure for learning nonlinear, gaussian data generated from Causal Additive Noise Models. This algorithm consists of four stages: learning the initial CPDAG, determining the orientation of undirected edges, removing superfluous edges, and converting a PDAG to a DAG.
+Description: A sequential nonlinear orientation of edges (SNOE) procedure for learning nonlinear, gaussian data generated from Causal Additive Noise Models. This algorithm consists of four stages: learning the initial CPDAG, determining the orientation of undirected edges, removing superfluous edges, and converting a PDAG to a DAG.
 License: GPL (>= 3)
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
