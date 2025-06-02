@@ -155,7 +155,6 @@ finalize_dag = function(data, curr_amat, nodelabels = colnames(data), alpha = 0.
     }
   }
 
-
   # second iteration: undirected edges + edges that are sig but couldn't orient
   # run likelihood test again
   udr_edges_subset <- NULL

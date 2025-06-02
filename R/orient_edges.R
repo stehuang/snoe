@@ -543,6 +543,7 @@ orient_edge = function(data, curr_amat, nodelabels = colnames(data), alpha = 0.0
     sig_ind[,1] <- nodelabels[as.numeric(sig_ind[,1])]
     sig_ind[,2] <- nodelabels[as.numeric(sig_ind[,2])]
   }
+
   ll_end <- Sys.time()
   total_time <- as.numeric(ll_end-total_start, unit = "secs")
   edgeorient_time <- as.numeric(ll_test_end-ll_test_start, unit = "secs")
