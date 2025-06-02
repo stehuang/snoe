@@ -298,7 +298,8 @@ ll_orient_test <- function(data, train_ratio=0.5, ll_test_approach="SS", adjmat,
 # function: orient edge in the PDAG
 # input: pdag (bnlearn object), adjacency matrix, index of parent node, index of child node
 # output: pdag (bnlearn object) with edge oriented and added to whitelist
-update_bnlearn_dag_wl <- function(bnlearn_obj, adjmat=NULL, pa_ind, ch_ind){
+update_bnlearn_dag_wl <- function(bnlearn_obj, pa_ind, ch_ind){
+  adjmat <- amat(bnlearn_obj)
   nodelabels <- colnames(adjmat)
   if(!is.null(adjmat)){
     if(adjmat[ch_ind, pa_ind]==1){
@@ -389,17 +390,20 @@ orient_edge = function(data, curr_amat, nodelabels = colnames(data), alpha = 0.0
   for(curr_n_nbr in c(0:max_common_nbr)){
     udr_edges_subset <- udr_edges[udr_edges[,"n_nbr"]==curr_n_nbr,,drop=F]
     if(nrow(udr_edges_subset)==0) next
-    # rank edges
+    # if there are common nbrs, rank edges
+    # if(curr_n_nbr > 0 && nrow(udr_edges_subset > 1)){
     if(nrow(udr_edges_subset > 1)){
       min_mi_vec <- apply(udr_edges_subset, MARGIN=1,
-                          FUN=function(x) compute_panm_indep(data, adjmat=adjmat, curr_edge=x,
-                                                             k=k_basis, compute_min_indep_only = TRUE))
-      udr_edges_subset <- cbind(udr_edges_subset, min_mi_vec)
-      colnames(udr_edges_subset)[ncol(udr_edges_subset)] <- "min_mi"
-      udr_edges_subset <- udr_edges_subset[order(udr_edges_subset[, "min_mi"], decreasing=FALSE),,drop=FALSE]
+                          FUN=function(x) has_common_pa(dat, adjmat=adjmat, curr_edge=x,
+                                                        k=k_basis, compute_min_indep_only = FALSE))
+      new_colnames <- c(colnames(udr_edges_subset), "mi_n1_std_pa", "mi_n2_std_pa", "min_mi")
+      udr_edges_subset <- cbind(udr_edges_subset, t(min_mi_vec))
+      # colnames(udr_edges_subset)[ncol(udr_edges_subset)] <- "min_mi"
+      colnames(udr_edges_subset) <- new_colnames
+      # udr_edges_subset <- udr_edges_subset[order(udr_edges_subset[, "min_mi"], decreasing=FALSE),,drop=FALSE]
     }
 
-    # apply likelihood test to ordered undirected edges
+
     for(i in c(1:nrow(udr_edges_subset))){
       # get parent and child indices, with row num in larger list
       pa_ind = udr_edges_subset[i, "pa"]
@@ -407,70 +411,15 @@ orient_edge = function(data, curr_amat, nodelabels = colnames(data), alpha = 0.0
       orig_df_index <- which(udr_edges[,"pa"] == pa_ind & udr_edges[,"ch"] == ch_ind, arr.ind=TRUE)
       udr_edges[orig_df_index, "has_eval"] <- 1
 
-      # check if edge becomes directed after edge orientation, skip to save time
+      # CHECK IF EDGE BECOMES DIRECTED AFTER EDGE ORIENTATION, SKIP TO SAVE TIME
       if(adjmat[nodelabels[pa_ind], nodelabels[ch_ind]]-adjmat[nodelabels[ch_ind],nodelabels[pa_ind]]!=0){
         udr_edges[orig_df_index, "has_orient"] <- 1
-        curr_cpdag <- update_bnlearn_dag_wl(curr_cpdag, adjmat=adjmat, pa_ind, ch_ind)
+        gam_cpdag <- update_bnlearn_dag_wl(gam_cpdag, pa_ind, ch_ind)
         next
       }
 
       # perform likelihood test
-      ll_test_res <- ll_orient_test(data, train_ratio=0.5, ll_test_approach=ll_test_approach,
-                                    adjmat=adjmat, pa_ind=pa_ind, ch_ind=ch_ind, k_basis=k_basis)
-      res <- append(res, ll_test_res)
-      udr_edges[orig_df_index, "pval"] <- ll_test_res$pval_ll_diff
-      udr_edges[orig_df_index, "ll_diff"] <- ll_test_res$llratio
-
-      # causal dirction found to be significant
-      if(ll_test_res$pval_ll_diff < alpha){
-        # change parent node if second model is better
-        if(ll_test_res$llratio < 0){
-          temp_node <- pa_ind
-          pa_ind <- ch_ind
-          ch_ind <- temp_node
-        }
-        # check for cycles
-        if(creates_cycles(adjmat, ch_ind, pa_ind)==TRUE) next
-
-        # update existing PDAG and orient edges again
-        curr_cpdag <- set.arc(curr_cpdag, from=nodelabels[pa_ind], to=nodelabels[ch_ind])
-        sig_ind = rbind(sig_ind, c(pa_ind, ch_ind))
-        udr_edges[orig_df_index, "has_orient"] <- 1
-
-        # update whitelist in cpdag
-        curr_cpdag <- update_bnlearn_dag_wl(curr_cpdag, adjmat=adjmat, pa_ind, ch_ind)
-        # apply Meek's rule (ie convert to cpdag) to orient more edges
-        curr_cpdag <- cpdag(curr_cpdag, wlbl=TRUE)
-        adjmat = amat(curr_cpdag)
-        # update number of neighbors
-        udr_edges[,"n_nbr"] <- count_common_nbr(adjmat, udr_edges[,c(1,2)], existing_nbr=udr_edges[,"n_nbr"])
-      }else{next}
-      gc()
-    }
-  }
-
-  # orient remaining undirected edges
-  udr_edges_subset <- NULL
-  if(sum(udr_edges[,"has_eval"] == 0) + sum(udr_edges[,"pval"]<alpha & udr_edges[,"has_orient"]==0) > 0){
-    # edges not evaluated + edge found sig but weren't oriented
-    udr_edges_subset <- udr_edges[(udr_edges[,"has_eval"]==0) | (udr_edges[,"pval"]<alpha & udr_edges[,"has_orient"]==0),,drop=FALSE]
-    udr_edges_subset <- udr_edges_subset[order(udr_edges_subset[,"n_nbr"], decreasing=FALSE),,drop=FALSE]
-    for(i in c(1:nrow(udr_edges_subset))){
-      # get parent and child indices, with row num in larger list
-      pa_ind = udr_edges_subset[i, "pa"]
-      ch_ind = udr_edges_subset[i, "ch"]
-      orig_df_index <- which(udr_edges[,"pa"] == pa_ind & udr_edges[,"ch"] == ch_ind, arr.ind=TRUE)
-      udr_edges[orig_df_index, "has_eval"] <- 1
-
-      # check if edge becomes directed after edge orientation, skip to save time
-      if(adjmat[nodelabels[pa_ind], nodelabels[ch_ind]]-adjmat[nodelabels[ch_ind],nodelabels[pa_ind]]!=0){
-        udr_edges[orig_df_index, "has_orient"] <- 1
-        curr_cpdag <- update_bnlearn_dag_wl(curr_cpdag, adjmat=adjmat, pa_ind, ch_ind)
-        next
-      }
-
-      # perform likelihood test
-      ll_test_res <- ll_orient_test(data, train_ratio=0.5, ll_test_approach=ll_test_approach,
+      ll_test_res <- ll_orient_test(dat, train_ratio=0.5, ll_test_approach=ll_test_approach,
                                     adjmat=adjmat, pa_ind=pa_ind, ch_ind=ch_ind, k_basis=k_basis)
       res <- append(res, ll_test_res)
       udr_edges[orig_df_index, "pval"] <- ll_test_res$pval_ll_diff
@@ -488,15 +437,100 @@ orient_edge = function(data, curr_amat, nodelabels = colnames(data), alpha = 0.0
         if(creates_cycles(adjmat, ch_ind, pa_ind)==TRUE) next
 
         # update existing CPDAG and orient edges again
-        curr_cpdag <- set.arc(curr_cpdag, from=nodelabels[pa_ind], to=nodelabels[ch_ind])
+        gam_cpdag <- set.arc(gam_cpdag, from=nodelabels[pa_ind], to=nodelabels[ch_ind])
+        adjmat = amat(gam_cpdag)
+        sig_ind = rbind(sig_ind, c(pa_ind, ch_ind))
+        udr_edges[orig_df_index, "has_orient"] <- 1
+        # update whitelist in cpdag
+        gam_cpdag <- update_bnlearn_dag_wl(gam_cpdag, pa_ind, ch_ind)
+
+        # orient all edges of common neighbors & children outwards
+        pa_node_nbr <- nodelabels[adjmat[,nodelabels[pa_ind]] == adjmat[nodelabels[pa_ind],] & adjmat[,nodelabels[pa_ind]] == 1]
+        pa_node_ch <- nodelabels[adjmat[nodelabels[pa_ind],] - adjmat[,nodelabels[pa_ind]] == 1]
+        ch_node_nbr <- nodelabels[adjmat[,nodelabels[ch_ind]] == adjmat[nodelabels[ch_ind],] & adjmat[,nodelabels[ch_ind]] == 1]
+        ch_node_ch <- nodelabels[adjmat[nodelabels[ch_ind],] - adjmat[,nodelabels[ch_ind]] == 1]
+
+        union_pa_nc <- union(pa_node_nbr, pa_node_ch)
+        union_ch_nc <- union(ch_node_nbr, ch_node_ch)
+
+        common_nc <- intersect(union_pa_nc, union_ch_nc)
+        common_nc = common_nc[!(common_nc %in% nodelabels[c(pa_ind, ch_ind)])]
+
+        # orient edges as inward for all common neighbors & children
+        if(length(common_nc) > 0){
+          for(nbr_ind in common_nc){
+            if(creates_cycles(adjmat, nbr_ind, pa_ind)==TRUE || creates_cycles(adjmat, nbr_ind, ch_ind)==TRUE) next
+            gam_cpdag <- set.arc(gam_cpdag, from=nodelabels[pa_ind], to=nbr_ind)
+            gam_cpdag <- set.arc(gam_cpdag, from=nodelabels[ch_ind], to=nbr_ind)
+            adjmat = amat(gam_cpdag)
+            # update whitelist in cpdag
+            gam_cpdag <- update_bnlearn_dag_wl(gam_cpdag, pa_ind, which(nodelabels == nbr_ind))
+            gam_cpdag <- update_bnlearn_dag_wl(gam_cpdag, ch_ind, which(nodelabels == nbr_ind))
+          }
+        }
+
+        # apply Meek's rule (ie convert to cpdag) to orient more edges
+        gam_cpdag <- cpdag(gam_cpdag, wlbl=TRUE)
+        adjmat = amat(gam_cpdag)
+
+        # # update whitelist in cpdag
+        # gam_cpdag <- update_bnlearn_dag_wl(gam_cpdag, adjmat=NULL, pa_ind, ch_ind)
+
+        # update number of neighbors
+        udr_edges[,"n_nbr"] <- count_common_nbr(adjmat, udr_edges[,c(1,2)], existing_nbr=udr_edges[,"n_nbr"])
+      }else{next}
+      gc()
+    }
+  }
+
+  # orient remaining edges
+  udr_edges_subset <- NULL
+  if(sum(udr_edges[,"has_eval"] == 0) + sum(udr_edges[,"pval"]<alpha & udr_edges[,"has_orient"]==0) > 0){
+    # edges not evaluated + edge found sig but weren't oriented
+    udr_edges_subset <- udr_edges[(udr_edges[,"has_eval"]==0) | (udr_edges[,"pval"]<alpha & udr_edges[,"has_orient"]==0),,drop=FALSE]
+    udr_edges_subset <- udr_edges_subset[order(udr_edges_subset[,"n_nbr"], decreasing=FALSE),,drop=FALSE]
+    for(i in c(1:nrow(udr_edges_subset))){
+      # get parent and child indices, with row num in larger list
+      pa_ind = udr_edges_subset[i, "pa"]
+      ch_ind = udr_edges_subset[i, "ch"]
+      orig_df_index <- which(udr_edges[,"pa"] == pa_ind & udr_edges[,"ch"] == ch_ind, arr.ind=TRUE)
+      udr_edges[orig_df_index, "has_eval"] <- 1
+
+      # CHECK IF EDGE BECOMES DIRECTED AFTER EDGE ORIENTATION, SKIP TO SAVE TIME
+      if(adjmat[nodelabels[pa_ind], nodelabels[ch_ind]]-adjmat[nodelabels[ch_ind],nodelabels[pa_ind]]!=0){
+        udr_edges[orig_df_index, "has_orient"] <- 1
+        gam_cpdag <- update_bnlearn_dag_wl(gam_cpdag, pa_ind, ch_ind)
+        next
+      }
+
+      # perform likelihood test
+      ll_test_res <- ll_orient_test(dat, train_ratio=0.5, ll_test_approach=ll_test_approach,
+                                    adjmat=adjmat, pa_ind=pa_ind, ch_ind=ch_ind, k_basis=k_basis)
+      res <- append(res, ll_test_res)
+      udr_edges[orig_df_index, "pval"] <- ll_test_res$pval_ll_diff
+      udr_edges[orig_df_index, "ll_diff"] <- ll_test_res$llratio
+
+      # causal dirction found to be significant
+      if(ll_test_res$pval_ll_diff < alpha){
+        # change parent node if second model is better
+        if(ll_test_res$llratio < 0){
+          temp_node <- pa_ind
+          pa_ind <- ch_ind
+          ch_ind <- temp_node
+        }
+        # check for cycles
+        if(creates_cycles(adjmat, ch_ind, pa_ind)==TRUE) next
+
+        # update existing CPDAG and orient edges again
+        gam_cpdag <- set.arc(gam_cpdag, from=nodelabels[pa_ind], to=nodelabels[ch_ind])
         sig_ind = rbind(sig_ind, c(pa_ind, ch_ind))
         udr_edges[orig_df_index, "has_orient"] <- 1
 
         # update whitelist in cpdag
-        curr_cpdag <- update_bnlearn_dag_wl(curr_cpdag, adjmat=adjmat, pa_ind, ch_ind)
+        gam_cpdag <- update_bnlearn_dag_wl(gam_cpdag, pa_ind, ch_ind)
         # apply Meek's rule (ie convert to cpdag) to orient more edges
-        curr_cpdag <- cpdag(curr_cpdag, wlbl=TRUE)
-        adjmat = amat(curr_cpdag)
+        gam_cpdag <- cpdag(gam_cpdag, wlbl=TRUE)
+        adjmat = amat(gam_cpdag)
         # # update number of neighbors
         # udr_edges[,"n_nbr"] <- count_common_nbr(adjmat, udr_edges[,c(1,2)], existing_nbr=udr_edges[,"n_nbr"])
       }else{next}

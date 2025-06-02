@@ -73,8 +73,8 @@ finalize_dag = function(data, curr_amat, nodelabels = colnames(data), alpha = 0.
     # if(curr_n_nbr > 0 && nrow(udr_edges_subset > 1)){
     if(nrow(udr_edges_subset > 1)){
       min_mi_vec <- apply(udr_edges_subset, MARGIN=1,
-                          FUN=function(x) compute_panm_indep(data, adjmat=adjmat, curr_edge=x,
-                                                             k=k_basis, compute_min_indep_only = TRUE))
+                          FUN=function(x) has_common_pa(dat, adjmat=adjmat, curr_edge=x,
+                                                        k=k_basis, compute_min_indep_only = TRUE))
       udr_edges_subset <- cbind(udr_edges_subset, min_mi_vec)
       colnames(udr_edges_subset)[ncol(udr_edges_subset)] <- "min_mi"
       udr_edges_subset <- udr_edges_subset[order(udr_edges_subset[, "min_mi"], decreasing=FALSE),,drop=FALSE]
@@ -87,15 +87,15 @@ finalize_dag = function(data, curr_amat, nodelabels = colnames(data), alpha = 0.
       orig_df_index <- which(udr_edges[,"pa"] == pa_ind & udr_edges[,"ch"] == ch_ind, arr.ind=TRUE)
       udr_edges[orig_df_index, "has_eval"] <- 1
 
-      # check if edge becomes directed after edge orientation, skip to save time
+      # CHECK IF EDGE BECOMES DIRECTED AFTER EDGE ORIENTATION, SKIP TO SAVE TIME
       if(adjmat[nodelabels[pa_ind], nodelabels[ch_ind]]-adjmat[nodelabels[ch_ind],nodelabels[pa_ind]]!=0){
         udr_edges[orig_df_index, "has_orient"] <- 1
-        curr_graph <- update_bnlearn_dag_wl(curr_graph, adjmat=adjmat, pa_ind, ch_ind)
+        gam_cpdag <- update_bnlearn_dag_wl(gam_cpdag, pa_ind, ch_ind)
         next
       }
 
       # perform likelihood test
-      ll_test_res <- ll_orient_test(data, train_ratio=0.5, ll_test_approach=ll_test_approach,
+      ll_test_res <- ll_orient_test(dat, train_ratio=0.5, ll_test_approach=ll_test_approach,
                                     adjmat=adjmat, pa_ind=pa_ind, ch_ind=ch_ind, k_basis=k_basis)
       res <- append(res, ll_test_res)
       udr_edges[orig_df_index, "pval"] <- ll_test_res$pval_ll_diff
@@ -113,15 +113,41 @@ finalize_dag = function(data, curr_amat, nodelabels = colnames(data), alpha = 0.
         if(creates_cycles(adjmat, ch_ind, pa_ind)==TRUE) next
 
         # update existing CPDAG and orient edges again
-        curr_graph <- set.arc(curr_graph, from=nodelabels[pa_ind], to=nodelabels[ch_ind])
+        gam_cpdag <- set.arc(gam_cpdag, from=nodelabels[pa_ind], to=nodelabels[ch_ind])
         sig_ind = rbind(sig_ind, c(pa_ind, ch_ind))
         udr_edges[orig_df_index, "has_orient"] <- 1
 
         # update whitelist in cpdag
-        curr_graph <- update_bnlearn_dag_wl(curr_graph, adjmat=adjmat, pa_ind, ch_ind)
+        gam_cpdag <- update_bnlearn_dag_wl(gam_cpdag, pa_ind, ch_ind)
         # apply Meek's rule (ie convert to cpdag) to orient more edges
-        curr_graph <- cpdag(curr_graph, wlbl=TRUE)
-        adjmat = amat(curr_graph)
+        # gam_cpdag <- cpdag(gam_cpdag, wlbl=TRUE)
+        adjmat = amat(gam_cpdag)
+
+        # orient all edges of common neighbors & children outwards
+        pa_node_nbr <- nodelabels[adjmat[,nodelabels[pa_ind]] == adjmat[nodelabels[pa_ind],] & adjmat[,nodelabels[pa_ind]] == 1]
+        pa_node_ch <- nodelabels[adjmat[nodelabels[pa_ind],] - adjmat[,nodelabels[pa_ind]] == 1]
+        ch_node_nbr <- nodelabels[adjmat[,nodelabels[ch_ind]] == adjmat[nodelabels[ch_ind],] & adjmat[,nodelabels[ch_ind]] == 1]
+        ch_node_ch <- nodelabels[adjmat[nodelabels[ch_ind],] - adjmat[,nodelabels[ch_ind]] == 1]
+
+        union_pa_nc <- union(pa_node_nbr, pa_node_ch)
+        union_ch_nc <- union(ch_node_nbr, ch_node_ch)
+
+        common_nc <- intersect(union_pa_nc, union_ch_nc)
+        common_nc = common_nc[!(common_nc %in% nodelabels[c(pa_ind, ch_ind)])]
+
+        # orient edges as inward for all common neighbors & children
+        if(length(common_nc) > 0){
+          for(nbr_ind in common_nc){
+            if(creates_cycles(adjmat, nbr_ind, pa_ind)==TRUE || creates_cycles(adjmat, nbr_ind, ch_ind)==TRUE) next
+            gam_cpdag <- set.arc(gam_cpdag, from=nodelabels[pa_ind], to=nbr_ind)
+            gam_cpdag <- set.arc(gam_cpdag, from=nodelabels[ch_ind], to=nbr_ind)
+            adjmat = amat(gam_cpdag)
+            # update whitelist in cpdag
+            gam_cpdag <- update_bnlearn_dag_wl(gam_cpdag, pa_ind, which(nodelabels == nbr_ind))
+            gam_cpdag <- update_bnlearn_dag_wl(gam_cpdag, ch_ind, which(nodelabels == nbr_ind))
+          }
+        }
+
         # update number of neighbors
         udr_edges[,"n_nbr"] <- count_common_nbr(adjmat, udr_edges[,c(1,2)], existing_nbr=udr_edges[,"n_nbr"])
       }else{next}
@@ -145,15 +171,15 @@ finalize_dag = function(data, curr_amat, nodelabels = colnames(data), alpha = 0.
       orig_df_index <- which(udr_edges[,"pa"] == pa_ind & udr_edges[,"ch"] == ch_ind, arr.ind=TRUE)
       udr_edges[orig_df_index, "has_eval"] <- 1
 
-      # check if edge becomes directed after edge orientation, skip to save time
+      # CHECK IF EDGE BECOMES DIRECTED AFTER EDGE ORIENTATION, SKIP TO SAVE TIME
       if(adjmat[nodelabels[pa_ind], nodelabels[ch_ind]]-adjmat[nodelabels[ch_ind],nodelabels[pa_ind]]!=0){
         udr_edges[orig_df_index, "has_orient"] <- 1
-        curr_graph <- update_bnlearn_dag_wl(curr_graph, adjmat=adjmat, pa_ind, ch_ind)
+        gam_cpdag <- update_bnlearn_dag_wl(gam_cpdag, pa_ind, ch_ind)
         next
       }
 
       # perform likelihood test
-      ll_test_res <- ll_orient_test(data, train_ratio=0.5, ll_test_approach=ll_test_approach,
+      ll_test_res <- ll_orient_test(dat, train_ratio=0.5, ll_test_approach=ll_test_approach,
                                     adjmat=adjmat, pa_ind=pa_ind, ch_ind=ch_ind, k_basis=k_basis)
       res <- append(res, ll_test_res)
       udr_edges[orig_df_index, "pval"] <- ll_test_res$pval_ll_diff
@@ -171,16 +197,39 @@ finalize_dag = function(data, curr_amat, nodelabels = colnames(data), alpha = 0.
         if(creates_cycles(adjmat, ch_ind, pa_ind)==TRUE) next
 
         # update existing CPDAG and orient edges again
-        curr_graph <- set.arc(curr_graph, from=nodelabels[pa_ind], to=nodelabels[ch_ind])
+        gam_cpdag <- set.arc(gam_cpdag, from=nodelabels[pa_ind], to=nodelabels[ch_ind])
+        adjmat = amat(gam_cpdag)
         sig_ind = rbind(sig_ind, c(pa_ind, ch_ind))
         udr_edges[orig_df_index, "has_orient"] <- 1
-
         # update whitelist in cpdag
-        curr_graph <- update_bnlearn_dag_wl(curr_graph, adjmat=adjmat, pa_ind, ch_ind)
+        gam_cpdag <- update_bnlearn_dag_wl(gam_cpdag, pa_ind, ch_ind)
+        cat("orienting curr root node and edge: ", nodelabels[pa_ind], nodelabels[ch_ind])
+
+        # orient all edges of root node outwards
+        pa_node_nbr <- nodelabels[adjmat[,nodelabels[pa_ind]] == adjmat[nodelabels[pa_ind],] & adjmat[,nodelabels[pa_ind]] == 1]
+        print(pa_node_nbr)
+        if(length(pa_node_nbr) > 0){
+          for(nbr_ind in pa_node_nbr){
+            if(creates_cycles(adjmat, nbr_ind, pa_ind)==TRUE) next
+            gam_cpdag <- set.arc(gam_cpdag, from=nodelabels[pa_ind], to=nbr_ind)
+            adjmat = amat(gam_cpdag)
+            # update whitelist in cpdag
+            gam_cpdag <- update_bnlearn_dag_wl(gam_cpdag, pa_ind, which(nodelabels == nbr_ind))
+            cat("orienting root node neighbor: ", nodelabels[pa_ind], nbr_ind)
+          }
+        }
+
+        # # update existing CPDAG and orient edges again
+        # gam_cpdag <- set.arc(gam_cpdag, from=nodelabels[pa_ind], to=nodelabels[ch_ind])
+        # sig_ind = rbind(sig_ind, c(pa_ind, ch_ind))
+        # udr_edges[orig_df_index, "has_orient"] <- 1
+
+        # # update whitelist in cpdag
+        # gam_cpdag <- update_bnlearn_dag_wl(gam_cpdag, adjmat=NULL, pa_ind, ch_ind)
         # apply Meek's rule (ie convert to cpdag) to orient more edges
-        curr_graph <- cpdag(curr_graph, wlbl=TRUE)
-        adjmat = amat(curr_graph)
-        # update number of neighbors
+        # gam_cpdag <- cpdag(gam_cpdag, wlbl=TRUE)
+        adjmat = amat(gam_cpdag)
+        # # update number of neighbors
         # udr_edges[,"n_nbr"] <- count_common_nbr(adjmat, udr_edges[,c(1,2)], existing_nbr=udr_edges[,"n_nbr"])
       }else{next}
       gc()
@@ -215,7 +264,7 @@ finalize_dag = function(data, curr_amat, nodelabels = colnames(data), alpha = 0.
     }
   }
 
-  amat(curr_graph) <- adjmat
+  amat(gam_cpdag) <- adjmat
 
   ll_test_end <- Sys.time()
   if(!is.null(sig_ind)){
