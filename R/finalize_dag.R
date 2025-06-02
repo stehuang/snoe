@@ -236,7 +236,6 @@ finalize_dag = function(data, curr_amat, nodelabels = colnames(data), alpha = 0.
     }
   }
 
-
   # third iteration: only check for undirected edges
   # orient or remove as a result
   if(sum(udr_edges[,"has_orient"]==0)>0){

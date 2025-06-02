@@ -357,7 +357,6 @@ orient_edge = function(data, curr_amat, nodelabels = colnames(data), alpha = 0.0
   # assign test method based on sample size
   if(is.null(ll_test_approach)) ll_test_approach <- ifelse(nrow(data)>500, "2fold", "5_5_split")
 
-
   total_start = Sys.time()
   # undirected arcs and corresponding pairs of nodes
   udr_edges = matrix(which((adjmat == t(adjmat) & (adjmat != 0)), arr.ind = TRUE), ncol = 2)
