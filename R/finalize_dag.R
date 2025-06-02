@@ -69,8 +69,8 @@ finalize_dag = function(data, curr_amat, nodelabels = colnames(data), alpha = 0.
   for(curr_n_nbr in c(0:max_common_nbr)){
     udr_edges_subset <- udr_edges[udr_edges[,"n_nbr"]==curr_n_nbr,,drop=F]
     if(nrow(udr_edges_subset)==0) next
+
     # if there are common nbrs, rank edges
-    # if(curr_n_nbr > 0 && nrow(udr_edges_subset > 1)){
     if(nrow(udr_edges_subset > 1)){
       min_mi_vec <- apply(udr_edges_subset, MARGIN=1,
                           FUN=function(x) has_common_pa(dat, adjmat=adjmat, curr_edge=x,

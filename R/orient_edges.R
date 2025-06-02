@@ -472,9 +472,6 @@ orient_edge = function(data, curr_amat, nodelabels = colnames(data), alpha = 0.0
         gam_cpdag <- cpdag(gam_cpdag, wlbl=TRUE)
         adjmat = amat(gam_cpdag)
 
-        # # update whitelist in cpdag
-        # gam_cpdag <- update_bnlearn_dag_wl(gam_cpdag, adjmat=NULL, pa_ind, ch_ind)
-
         # update number of neighbors
         udr_edges[,"n_nbr"] <- count_common_nbr(adjmat, udr_edges[,c(1,2)], existing_nbr=udr_edges[,"n_nbr"])
       }else{next}
