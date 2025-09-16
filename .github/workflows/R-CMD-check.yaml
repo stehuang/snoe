@@ -43,6 +43,11 @@ jobs:
       - uses: r-lib/actions/setup-r-dependencies@v2
         with:
           packages: |
+            any::bnlearn
+            any::igraph
+            any::infotheo
+            any::mgcv
+            any::VGAM
             github::itsrainingdata/sparsebnUtils
             github::itsrainingdata/ccdrAlgorithm
             github::jirehhuang/phsl

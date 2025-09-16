@@ -27,7 +27,7 @@ snoe(
 
 \item{train_ratio}{percentage of data used for training dataset}
 
-\item{standardized}{standardize data or not?}
+\item{standardized}{standardize data or not}
 }
 \value{
 adjacency matrix of learned DAG
