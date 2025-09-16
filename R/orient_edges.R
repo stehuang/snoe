@@ -198,58 +198,106 @@ compute_panm_indep <- function(data, adjmat, curr_edge, k, train_ratio=0.5,
   # if both results show dependence, then n1 & n2 have a common parent
   # build regression model for n1 = pa(n1) + n2
   n1_pa <- nodelabels[which(adjmat[, n1] - adjmat[n1, ] == 1)]
-  model_n1 <- fit_gam_reg(data=train_data, pa_nodes=c(n1_pa, n2), ch_node=n1, k=k)
+  model_n1 <- fit_gam_reg(dat=train_data, pa_nodes=c(n1_pa, n2), ch_node=n1, k=k)
   # predict n1 on testing data and get residuals
   n1_hat <- predict(model_n1, newdata=as.data.frame(test_data), type='response')
-  n1_predictor <- predict(model_n1, newdata=as.data.frame(test_data), type='iterms')[,paste("s(", n2, ")", sep="")]
   n1_residuals <- test_data[,n1] - n1_hat
 
   # check other node
   n2_pa <- nodelabels[which(adjmat[, n2] - adjmat[n2, ] == 1)]
-  model_n2 <- fit_gam_reg(data=train_data, pa_nodes=c(n2_pa, n1), ch_node=n2, k=k)
+  model_n2 <- fit_gam_reg(dat=train_data, pa_nodes=c(n2_pa, n1), ch_node=n2, k=k)
   # predict n1 on testing data and get residuals
-  n2_predictor <- predict(model_n2, newdata=as.data.frame(test_data), type='iterms')[,paste("s(", n1, ")", sep="")]
   n2_hat <- predict(model_n2, newdata=as.data.frame(test_data), type='response')
   n2_residuals <- test_data[,n2] - n2_hat
 
   # discretize data
   disc_method <- "equalwidth"
-  nbins <- round(nrow(test_data)/samples_per_bin)
+  nbins <- round(nrow(test_data)/50)
 
-  # compute standardized mi for res(n1) and n2
-  mi_n1_std <- compute_mi_std(n1_residuals, test_data[,n2], disc_method=disc_method, nbins=nbins)
-  # compute standardized mi for res(n2) and n1
-  mi_n2_std <- compute_mi_std(n2_residuals, test_data[,n1], disc_method=disc_method, nbins=nbins)
-  # compute standardized mi for res(n1) and parents of n1
+  # # compute standardized mi for res(n1) and n2
+  # mi_n1_std <- compute_mi_std(n1_residuals, test_data[,n2], disc_method=disc_method, nbins=nbins)
+  # # compute standardized mi for res(n2) and n1
+  # mi_n2_std <- compute_mi_std(n2_residuals, test_data[,n1], disc_method=disc_method, nbins=nbins)
+
+
+  # build regression model for n1 = pa(n1) + n2
+  model_n1_pa_only <- fit_gam_reg(dat=train_data, pa_nodes=c(n1_pa), ch_node=n1, k=k)
+  # predict n1 on testing data and get residuals
+  n1_hat_pa_only <- predict(model_n1_pa_only, newdata=as.data.frame(test_data), type='response')
+  n1_residuals_pa_only <- test_data[,n1] - n1_hat_pa_only
+
+  # check other node
+  model_n2_pa_only <- fit_gam_reg(dat=train_data, pa_nodes=c(n2_pa), ch_node=n2, k=k)
+  # predict n1 on testing data and get residuals
+  n2_hat_pa_only <- predict(model_n2_pa_only, newdata=as.data.frame(test_data), type='response')
+  n2_residuals_pa_only <- test_data[,n2] - n2_hat_pa_only
+
+  ### N2 -> N1
+  # n1: compute standardized mi for res(n1) and parents of n1
   mi_n1_std_pa <- c()
-  if(length(n1_pa)==0 | is.null(n1_pa)){
+  if(length(c(n1_pa, n2))==0 | is.null(c(n1_pa, n2))){
     mi_n1_std_pa <- mi_n1_std
   }else{
-    for(pa_node in n1_pa){
+    for(pa_node in c(n1_pa, n2)){
       mi_pa <- compute_mi_std(n1_residuals, test_data[,pa_node])
+      # mi_pa <- compute_mi_uncertainty_coef(n1_residuals, test_data[,pa_node])
       mi_n1_std_pa <- c(mi_n1_std_pa, mi_pa)
     }
   }
-  mi_n1_std_pa <- max(mi_n1_std_pa)
+  # mi_n1_std_pa <- max(mi_n1_std_pa)
+  # n2: compute standardized mi for res(n2) and parents of n2
+  mi_n1_std_pa_n2 <- c()
+  if(length(c(n2_pa))==0 | is.null(c(n2_pa))){
+    mi_n1_std_pa_n2 <- 0
+  }else{
+    for(pa_node in c(n2_pa)){
+      mi_pa <- compute_mi_std(n2_residuals_pa_only, test_data[,pa_node])
+      # mi_pa <- compute_mi_uncertainty_coef(n2_residuals_pa_only, test_data[,pa_node])
+      mi_n1_std_pa_n2 <- c(mi_n1_std_pa_n2, mi_pa)
+    }
+  }
+  # mi_n1_std_pa_n2 <- max(mi_n1_std_pa_n2)
+  # take max test statistic indicating max dependence
+  max_mi_n2_to_n1 <- max(mi_n1_std_pa, mi_n1_std_pa_n2)
 
+
+  ### N1 -> N2
   # compute standardized mi for res(n2) and parents of n2
   mi_n2_std_pa <- c()
-  if(length(n2_pa)==0 | is.null(n2_pa)){
+  if(length(c(n2_pa, n1))==0 | is.null(c(n2_pa, n1))){
     mi_n2_std_pa <- mi_n2_std
   }else{
-    for(pa_node in n2_pa){
+    for(pa_node in c(n2_pa, n1)){
       mi_pa <- compute_mi_std(n2_residuals, test_data[,pa_node])
+      # mi_pa <- compute_mi_uncertainty_coef(n2_residuals, test_data[,pa_node])
       mi_n2_std_pa <- c(mi_n2_std_pa, mi_pa)
     }
   }
-  mi_n2_std_pa <- max(mi_n2_std_pa)
+  # mi_n2_std_pa <- max(mi_n2_std_pa)
+  # n1: compute standardized mi for res(n1) and parents of n1
+  mi_n2_std_pa_n1 <- c()
+  if(length(c(n1_pa))==0 | is.null(c(n1_pa))){
+    mi_n2_std_pa_n1 <- 0
+  }else{
+    for(pa_node in c(n1_pa)){
+      mi_pa <- compute_mi_std(n1_residuals_pa_only, test_data[,pa_node])
+      # mi_pa <- compute_mi_uncertainty_coef(n1_residuals_pa_only, test_data[,pa_node])
+      mi_n2_std_pa_n1 <- c(mi_n2_std_pa_n1, mi_pa)
+    }
+  }
+  # mi_n1_std_pa_n2 <- max(mi_n1_std_pa_n2)
+  # take max test statistic indicating max dependence
+  max_mi_n1_to_n2 <- max(mi_n2_std_pa, mi_n2_std_pa_n1)
 
+  min_mi <- min(max_mi_n2_to_n1, max_mi_n1_to_n2)
   if(compute_min_indep_only == TRUE){
-    return(min(mi_n1_std, mi_n2_std, mi_n1_std_pa, mi_n2_std_pa))
+    return(min_mi)
   }
 
-  return(c(mi_n1_std, mi_n2_std))
+  return(c(max_mi_n2_to_n1, max_mi_n1_to_n2, min_mi))
 }
+
+
 
 
 #' Perform likelihood ratio based orientation test on an undirected edge
@@ -393,13 +441,13 @@ orient_edge = function(data, curr_amat, nodelabels = colnames(data), alpha = 0.0
     # if(curr_n_nbr > 0 && nrow(udr_edges_subset > 1)){
     if(nrow(udr_edges_subset > 1)){
       min_mi_vec <- apply(udr_edges_subset, MARGIN=1,
-                          FUN=function(x) has_common_pa(dat, adjmat=adjmat, curr_edge=x,
+                          FUN=function(x) compute_panm_indep(dat, adjmat=adjmat, curr_edge=x,
                                                         k=k_basis, compute_min_indep_only = FALSE))
       new_colnames <- c(colnames(udr_edges_subset), "mi_n1_std_pa", "mi_n2_std_pa", "min_mi")
       udr_edges_subset <- cbind(udr_edges_subset, t(min_mi_vec))
       # colnames(udr_edges_subset)[ncol(udr_edges_subset)] <- "min_mi"
       colnames(udr_edges_subset) <- new_colnames
-      # udr_edges_subset <- udr_edges_subset[order(udr_edges_subset[, "min_mi"], decreasing=FALSE),,drop=FALSE]
+      udr_edges_subset <- udr_edges_subset[order(udr_edges_subset[, "min_mi"], decreasing=FALSE),,drop=FALSE]
     }
 
 

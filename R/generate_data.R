@@ -169,7 +169,7 @@ nodedatagen = function(n = NULL, X_linear = matrix(numeric(0),0,0), X_nonlinear 
     Y_nonlinear = matrix(0, n, 1)
   }
 
-  se_val <- runif(1, min=se, max=se+0.1)
+  se_val <- runif(1, min=se, max=se+0.25)
 
   if(is.null(error.distr)){
     e = rnorm(n, 0, se_val)

@@ -108,13 +108,21 @@ gam_ll <- function(m_main, m_prior, test_data, pa_node, ch_node){
 }
 
 
-
-# adj_ll_test <- function(m_null, m_full){
-#   df_diff_x <- get_model_df(m_null) - get_model_df(m_full)
-#   test_stat <- as.numeric(-2*(logLik(m_null)-logLik(m_full)))
-#   var_pval_x <- pchisq(test_stat, df=max(df_diff_x, 1), lower.tail = FALSE)
-#   return(var_pval_x)
-# }
+# function: determining if the variance in the diff of log-liks are significant (i.e. too small); if so, can skip edge dir test and declare models as equivalent
+# method: compares the ratio of the variances var(joint)/min(var(X), var(Y)) to threshold
+# input: variance joint conditional loglik p(X, Y), conditional marginal loglik p(X), conditional marginal loglik p(Y)
+# output: true/false is ratio if below threshold
+ll_var_test <- function(joint_ll_var, var_ll_XtoY, var_ll_YtoX, tol=0.1){
+  min_sd <- min(sqrt(var_ll_XtoY), sqrt(var_ll_YtoX))
+  # print(c(min_sd, joint_ll_var))
+  if(min_sd > 0){
+    sd_ratio <- sqrt(joint_ll_var)/min_sd
+    if(sd_ratio < tol){ # variance is too small
+      return(c(TRUE, sd_ratio))
+    }
+  }
+  return(FALSE)
+}
 
 
 #' Likelihood test for edge orientation (5/5 train test split)
@@ -136,13 +144,7 @@ get_edge_dir <- function(m_XtoY, m_YtoX, m_x, m_y, test_data){
   start_time <- Sys.time()
   node_Y <- getResponseFromFormula(m_XtoY$formula)
   node_X <- getResponseFromFormula(m_YtoX$formula)
-  # 1. check if nodes are linear in fitted models
-  # if so for both, then relation is linear --> can't identify edge direction
-  are_linear <- check_linear_relation(m_XtoY, m_YtoX, m1_response=node_Y, m2_response=node_X)
-  if(are_linear){
-    eval_time <- as.numeric(difftime(time1 = Sys.time(), time2 = start_time, units = "secs"))
-    rval <- list(pval_ll_diff = 1, llratio = 0, eval_time = eval_time) # to indicate that edge directions are equivalent
-  }
+
   # get log likelihoods of both directions
   ll_XtoY_ind <- gam_ll(m_XtoY, m_x, test_data, pa_node=node_X, ch_node=node_Y)
   ll_YtoX_ind <- gam_ll(m_YtoX, m_y, test_data, pa_node=node_Y, ch_node=node_X)
@@ -162,29 +164,28 @@ get_edge_dir <- function(m_XtoY, m_YtoX, m_x, m_y, test_data){
   sd_mean_ratio <- abs(sqrt(omega.hat.2)/mean(ind_ll_diff, na.rm = TRUE))
   if(is.nan(sd_mean_ratio) || sd_mean_ratio >= n*1.5){
     eval_time <- as.numeric(difftime(time1 = Sys.time(), time2 = start_time, units = "secs"))
-    rval <- list(omega = omega.hat.2, # estimated variance
+    rval <- list(sample_var = omega.hat.2, # estimated variance
                  pval_ll_diff = 1, # variance test p-value
-                 llratio = sum(ind_ll_diff),
+                 ll_ratio = sum(ind_ll_diff),
+                 var_values = c(var(ll_XtoY, na.rm=TRUE), var(ll_YtoX, na.rm=TRUE)),
                  eval_time = eval_time
     )
     return(rval)
   }
+
   # or, if ratio of variances is small
-  min_sd <- min(sqrt(var(ll_YtoX, na.rm=TRUE)), sqrt(var(ll_XtoY, na.rm=TRUE)))
-  if(min_sd > 0){
-    sd_ratio <- sqrt(omega.hat.2)/min_sd
-    if(sd_ratio < 0.003){
-      eval_time <- as.numeric(difftime(time1 = Sys.time(), time2 = start_time, units = "secs"))
-      rval <- list(omega = omega.hat.2, # estimated variance
-                   pval_ll_diff = 1, # variance test p-value
-                   llratio = sum(ind_ll_diff),
-                   eval_time = eval_time
-      )
-      return(rval)
-    }
+  var_test_res <- ll_var_test(omega.hat.2, var(ll_XtoY, na.rm=TRUE), var(ll_YtoX, na.rm=TRUE), tol=sd_tol)
+  if(var_test_res[1]){
+    eval_time <- as.numeric(difftime(time1 = Sys.time(), time2 = start_time, units = "secs"))
+    rval <- list(sample_var = omega.hat.2, # estimated variance
+                 pval_ll_diff = 1, # variance test p-value
+                 ll_ratio = sum(ind_ll_diff),
+                 # var_values = c(var(ll_XtoY, na.rm=TRUE), var(ll_YtoX, na.rm=TRUE)),
+                 var_values = c(var_test_res[2], var_test_res[2]),
+                 eval_time = eval_time
+    )
+    return(rval)
   }
-
-
 
   # run test
   ll_t_test_res <- t.test(ll_XtoY, ll_YtoX, paired=TRUE, mu=0) # t-test
@@ -192,7 +193,6 @@ get_edge_dir <- function(m_XtoY, m_YtoX, m_x, m_y, test_data){
   ## Calculate likelihood ratio; Eq (6.4)
   lr <- sum(ll_XtoY-ll_YtoX)
   # lr <- mean(ind_ll_diff)
-
 
   # STEP 2: testing if models fit equally
   # only valid when f!=g
@@ -218,8 +218,7 @@ get_edge_dir <- function(m_XtoY, m_YtoX, m_x, m_y, test_data){
     sample_var =  omega.hat.2,
     ll_values = c(sum(ll_XtoY_ind[,1]), sum(ll_XtoY_ind[,2]),
                   sum(ll_YtoX_ind[,1]), sum(ll_YtoX_ind[,2])),
-    var_values = c(omega.hat.2,
-                   (n-1)/n * var(ll_XtoY_ind[,1] - ll_YtoX_ind[,2], na.rm = TRUE),
+    var_values = c((n-1)/n * var(ll_XtoY_ind[,1] - ll_YtoX_ind[,2], na.rm = TRUE),
                    (n-1)/n * var(ll_XtoY_ind[,2] - ll_YtoX_ind[,1], na.rm = TRUE)),
     eval_time = eval_time
   )
@@ -227,19 +226,6 @@ get_edge_dir <- function(m_XtoY, m_YtoX, m_x, m_y, test_data){
 }
 
 
-# function: determining if the variance in the diff of log-liks are significant (i.e. too small); if so, can skip edge dir test and declare models as equivalent
-# method: compares the ratio of the variances var(joint)/min(var(X), var(Y)) to threshold
-# input: variance joint conditional loglik p(X, Y), conditional marginal loglik p(X), conditional marginal loglik p(Y)
-# output: true/false is ratio if below threshold
-ll_var_test <- function(joint_ll_var, ll_x, ll_y, tol=1e-3){
-  min_sd <- min(sqrt(var(ll_x, na.rm=TRUE)), sqrt(var(ll_y, na.rm=TRUE)))
-  # print(c(min_sd, joint_ll_var))
-  if(min_sd > 0){
-    sd_ratio <- sqrt(joint_ll_var)/min_sd
-    if(sd_ratio < tol) return(TRUE) # variance is too small
-  }
-  return(FALSE)
-}
 
 #' Likelihood test for edge orientation (2fold approach)
 #'
@@ -273,14 +259,7 @@ get_edge_dir_2fold <- function(set_XtoY_1, set_YtoX_1, set_XtoY_2, set_YtoX_2, t
   # get name of node from models
   node_Y <- getResponseFromFormula(m_XtoY_1$formula)
   node_X <- getResponseFromFormula(m_YtoX_1$formula)
-  # 1. check if nodes are linear in fitted models
-  # if so for both, then relation is linear --> can't identify edge direction
-  are_linear <- check_linear_relation(list(m_XtoY_1, m_XtoY_2), list(m_YtoX_1, m_YtoX_2),
-                                      m1_response=node_Y, m2_response=node_X)
-  if(are_linear){
-    eval_time <- as.numeric(difftime(time1 = Sys.time(), time2 = start_time, units = "secs"))
-    rval <- list(pval_ll_diff = 1, llratio = 0, eval_time = eval_time) # to indicate that edge directions are equivalent
-  }
+
   # get ind log likelihoods of both directions
   ll_XtoY_ind_1 <- gam_ll(m_XtoY_1, m_Xp_1, train_data2, pa_node=node_X, ch_node=node_Y)
   ll_YtoX_ind_1 <- gam_ll(m_YtoX_1, m_Yp_1, train_data2, pa_node=node_Y, ch_node=node_X)
@@ -304,12 +283,11 @@ get_edge_dir_2fold <- function(set_XtoY_1, set_YtoX_1, set_XtoY_2, set_YtoX_2, t
   omega.hat.2 <- (n-1)/n * var(ind_ll_diff, na.rm = TRUE)
   ll_diff_var_1 <- var(ll_XtoY_1 - ll_YtoX_1, na.rm = TRUE)
   ll_diff_var_2 <- var(ll_XtoY_2 - ll_YtoX_2, na.rm = TRUE)
-  # print(c(sum(ll_XtoY_1), sum(ll_YtoX_1), sum(ll_XtoY_2), sum(ll_YtoX_2)))
 
   # if variance is very small, no need to conduct hypothesis test
   # or, if ratio of variances is small
-  var_test_res_1 <- ll_var_test(ll_diff_var_1, ll_XtoY_1, ll_YtoX_1, tol=0.003)
-  var_test_res_2 <- ll_var_test(ll_diff_var_2, ll_XtoY_2, ll_YtoX_2, tol=0.003)
+  var_test_res_1 <- ll_var_test(ll_diff_var_1, var(ll_XtoY_1, na.rm=TRUE), var(ll_YtoX_1, na.rm=TRUE), tol=sd_tol)
+  var_test_res_2 <- ll_var_test(ll_diff_var_2, var(ll_XtoY_2, na.rm=TRUE), var(ll_YtoX_2, na.rm=TRUE), tol=sd_tol)
 
   temp1 <- t.test(ll_XtoY_1, ll_YtoX_1, paired=TRUE)
   temp2 <- t.test(ll_XtoY_2, ll_YtoX_2, paired=TRUE)
@@ -318,16 +296,17 @@ get_edge_dir_2fold <- function(set_XtoY_1, set_YtoX_1, set_XtoY_2, set_YtoX_2, t
   lr <- sum(ll_XtoY-ll_YtoX)
   sample_mu <- lr/n
   sample_var <- (ll_diff_var_1 + ll_diff_var_2)/2
-  # overall_var <- ((sqrt(ll_diff_var_1) < 0.005) + (sqrt(ll_diff_var_2) < 0.005)) > 0
-  # overall_var <- abs(sqrt(sample_var)/sample_mu) >= (n/2)*1.5
+
   overall_var <- (abs(sqrt(ll_diff_var_1)/mean(ll_XtoY_1 - ll_YtoX_1)) >= (n/2)*1.5) + (abs(sqrt(ll_diff_var_2)/mean(ll_XtoY_2 - ll_YtoX_2)) >= (n/2)*1.5) == 2
   # print(c(abs(sqrt(ll_diff_var_1)/mean(ll_XtoY_1 - ll_YtoX_1)), abs(sqrt(ll_diff_var_2)/mean(ll_XtoY_2 - ll_YtoX_2)), n/2, overall_var,var_test_res_1, var_test_res_2))
   # if all are true, then reject
-  if(overall_var | (var_test_res_1 & var_test_res_2)){
+  if(overall_var | (var_test_res_1[1] & var_test_res_2[1])){
     eval_time <- as.numeric(difftime(time1 = Sys.time(), time2 = start_time, units = "secs"))
-    rval <- list(omega = omega.hat.2, # estimated variance
+    rval <- list(sample_var = omega.hat.2, # estimated variance
                  pval_ll_diff = 1, # variance test p-value
-                 llratio = sum(ind_ll_diff),
+                 ll_ratio = sum(ind_ll_diff),
+                 # var_values = c(var(ll_XtoY, na.rm=TRUE), var(ll_YtoX, na.rm=TRUE)),
+                 var_values = c(var_test_res_1[2], var_test_res_2[2]),
                  eval_time = eval_time
     )
     return(rval)
@@ -350,7 +329,7 @@ get_edge_dir_2fold <- function(set_XtoY_1, set_YtoX_1, set_XtoY_2, set_YtoX_2, t
     llratio = lr,  # total difference in log likelihood
     sample_var =  omega.hat.2,
     ll_values = c(sum(ll_XtoY_1), sum(ll_YtoX_1), sum(ll_XtoY_2), sum(ll_YtoX_2)),
-    var_values = c(sample_var, ll_diff_var_1, ll_diff_var_2, var(ll_XtoY), var(ll_YtoX)),
+    var_values = c(ll_diff_var_1, ll_diff_var_2, var(ll_XtoY), var(ll_YtoX)),
     eval_time = eval_time,
     test1 = temp1$p.value,
     test2 = temp2$p.value
@@ -359,121 +338,3 @@ get_edge_dir_2fold <- function(set_XtoY_1, set_YtoX_1, set_XtoY_2, set_YtoX_2, t
 }
 
 
-
-#### OBSOLETE FUNCTION
-# function: determining if the variance in the diff of log-liks are significant (i.e. too small); if so, can skip edge dir test and declare models as equivalent
-# method: compares the ratio of the variances var(joint)/min(var(X), var(Y)) to threshold
-# input: variance joint conditional loglik p(X, Y), conditional marginal loglik p(X), conditional marginal loglik p(Y)
-# output: true/false is ratio if below threshold
-ll_var_test <- function(joint_ll_var, ll_x, ll_y, tol=1e-3){
-  min_sd <- min(sqrt(var(ll_x, na.rm=TRUE)), sqrt(var(ll_y, na.rm=TRUE)))
-  # print(c(min_sd, joint_ll_var))
-  if(min_sd > 0){
-    sd_ratio <- sqrt(joint_ll_var)/min_sd
-    if(sd_ratio < tol) return(TRUE) # variance is too small
-  }
-  return(FALSE)
-}
-
-# function: conducting the edge dir test using 2-folds CV with SEPARATE t-tests
-# input: pretrained models and their training datasets; the training datasets serve as the other folds' test dataset
-# return: p-value from t-test (and other metrics), run-time
-get_edge_dir_2fold_2test <- function(set_XtoY_1, set_YtoX_1, set_XtoY_2, set_YtoX_2, train_data1, train_data2, check_both_folds=TRUE){
-  start_time <- Sys.time()
-  # saving all the models individually
-  m_XtoY_1 <- set_XtoY_1[[1]]
-  m_Xp_1 <- set_XtoY_1[[2]]
-  m_YtoX_1 <- set_YtoX_1[[1]]
-  m_Yp_1 <- set_YtoX_1[[2]]
-  m_XtoY_2 <- set_XtoY_2[[1]]
-  m_Xp_2 <- set_XtoY_2[[2]]
-  m_YtoX_2 <- set_YtoX_2[[1]]
-  m_Yp_2 <- set_YtoX_2[[2]]
-  # get name of node from models
-  node_Y <- getResponseFromFormula(m_XtoY_1$formula)
-  node_X <- getResponseFromFormula(m_YtoX_1$formula)
-  # 1. check if nodes are linear in fitted models
-  # if so for both, then relation is linear --> can't identify edge direction
-  are_linear <- check_linear_relation(list(m_XtoY_1, m_XtoY_2), list(m_YtoX_1, m_YtoX_2),
-                                      m1_response=node_Y, m2_response=node_X)
-  if(are_linear){
-    eval_time <- as.numeric(difftime(time1 = Sys.time(), time2 = start_time, units = "secs"))
-    rval <- list(pval_ll_diff = 1, llratio = sum(ind_ll_diff), eval_time = eval_time) # to indicate that edge directions are equivalent
-  }
-  # get ind log likelihoods of both directions
-  ll_XtoY_ind_1 <- gam_ll(m_XtoY_1, m_Xp_1, train_data2, pa_node=node_X, ch_node=node_Y)
-  ll_YtoX_ind_1 <- gam_ll(m_YtoX_1, m_Yp_1, train_data2, pa_node=node_Y, ch_node=node_X)
-  ll_XtoY_ind_2 <- gam_ll(m_XtoY_2, m_Xp_2, train_data1, pa_node=node_X, ch_node=node_Y)
-  ll_YtoX_ind_2 <- gam_ll(m_YtoX_2, m_Yp_2, train_data1, pa_node=node_Y, ch_node=node_X)
-  # get log likelihood from each each
-  ll_XtoY_1 <- ll_XtoY_ind_1[,1] + ll_XtoY_ind_1[,2]
-  ll_YtoX_1 <- ll_YtoX_ind_1[,1] + ll_YtoX_ind_1[,2]
-  ll_XtoY_2 <- ll_XtoY_ind_2[,1] + ll_XtoY_ind_2[,2]
-  ll_YtoX_2 <- ll_YtoX_ind_2[,1] + ll_YtoX_ind_2[,2]
-  # combine to get loglik on full dataset
-  ll_XtoY <- c(ll_XtoY_1, ll_XtoY_2)
-  ll_YtoX <- c(ll_YtoX_1, ll_YtoX_2)
-
-  # compare individual log-likelihoods
-  ind_ll_diff <- ll_XtoY-ll_YtoX
-
-  # calculate variance in log-likelihood ratios
-  nmis <- sum(is.na(ll_XtoY))
-  n <- NROW(ll_XtoY) - nmis
-  omega.hat.2 <- (n-1)/n * var(ind_ll_diff, na.rm = TRUE)
-  ll_diff_var_1 <- var(ll_XtoY_1 - ll_YtoX_1, na.rm = TRUE)
-  ll_diff_var_2 <- var(ll_XtoY_2 - ll_YtoX_2, na.rm = TRUE)
-  # print(c(sum(ll_XtoY_1), sum(ll_YtoX_1), sum(ll_XtoY_2), sum(ll_YtoX_2)))
-
-  # if ratio of variances is small , no need to conduct hypothesis test
-  var_test_res_1 <- ll_var_test(ll_diff_var_1, ll_XtoY_1, ll_YtoX_1, tol=0.001)
-  var_test_res_2 <- ll_var_test(ll_diff_var_2, ll_XtoY_2, ll_YtoX_2, tol=0.001)
-  # or, if variance is very small, no need to conduct hypothesis test
-  overall_var <- (abs(sqrt(ll_diff_var_1)/mean(ll_XtoY_1 - ll_YtoX_1)) >= (n/2)*1.5) + (abs(sqrt(ll_diff_var_2)/mean(ll_XtoY_2 - ll_YtoX_2)) >= (n/2)*1.5) > 0
-  # print(c(abs(sqrt(ll_diff_var_1)/mean(ll_XtoY_1 - ll_YtoX_1)), abs(sqrt(ll_diff_var_2)/mean(ll_XtoY_2 - ll_YtoX_2)), n/2, overall_var, var_test_res_1, var_test_res_2))
-  # if all are true, then reject
-  if(overall_var | (var_test_res_1 | var_test_res_2)){
-    eval_time <- as.numeric(difftime(time1 = Sys.time(), time2 = start_time, units = "secs"))
-    rval <- list(omega = omega.hat.2, # estimated variance
-                 pval_ll_diff = 1, # variance test p-value
-                 llratio = sum(ind_ll_diff),
-                 eval_time = eval_time
-    )
-    return(rval)
-  }
-
-
-  # t-test on fold 1
-  ll_res_large_res <- t.test(ll_XtoY_1, ll_YtoX_1, paired=TRUE, mu=0) # t-test
-  # t-test on fold 2
-  ll_res_small_res <- t.test(ll_XtoY_2, ll_YtoX_2, paired=TRUE, mu=0) # t-test
-  # print(ll_res_large_res)
-  # print(ll_res_small_res)
-  # logic: under conservative approach for both folds to be stat sig, consider the largest p-val; otherwise consider the smaller one
-  # identify the larger value here
-  if(ll_res_large_res$p.value < ll_res_small_res$p.value){
-    ll_res_large_res_temp <- ll_res_large_res
-    ll_res_large_res <- ll_res_small_res
-    ll_res_small_res <- ll_res_large_res_temp
-  }
-
-  # identify which element to return
-  if(check_both_folds){ # take the larger value
-    ll_t_test_res <- ll_res_large_res
-  }else{ # take the smaller value
-    ll_t_test_res <- ll_res_small_res
-  }
-
-  eval_time <- as.numeric(difftime(time1 = Sys.time(), time2 = start_time, units = "secs"))
-  rval <- list(
-    mean_ll_diff = unname(ll_t_test_res$estimate), # mean of diff in individual log likelihood estimates
-    stat_ll_diff = unname(ll_t_test_res$statistic), # test statistic
-    sd_ll_diff = unname(ll_t_test_res$stderr), # sample error
-    pval_ll_diff = unname(ll_t_test_res$p.value), # pval from t-test
-    llratio = unname(ll_t_test_res$estimate)*length(ll_XtoY_1),  # total difference in log likelihood
-    ll_values = c(sum(ll_XtoY_1), sum(ll_YtoX_1), sum(ll_XtoY_2), sum(ll_YtoX_2)),
-    var_values = c(omega.hat.2, ll_diff_var_1, ll_diff_var_2, var(ll_XtoY), var(ll_YtoX)),
-    eval_time = eval_time
-  )
-  return(rval)
-}

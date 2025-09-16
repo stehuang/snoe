@@ -4,6 +4,8 @@
 
 R package for a causal discovery method focused on learning non-linear relations from data
 
+To understand the theory behind our design and see empirical results, you can read our paper [Nonlinear Causal Discovery through a Sequential Edge Orientation Approach](https://arxiv.org/abs/2506.05590)
+
 Author: Stella Huang (stellahyh@g.ucla.edu)
 
 ## Installation

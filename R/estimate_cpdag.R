@@ -167,7 +167,7 @@ colliders_backend_mod <- function(x, return.arcs = FALSE, including.shielded = T
     coll = bnlearn:::arcs.rbind(coll[, c("X", "Z")], coll[, c("Y", "Z")])
     coll = bnlearn:::arcs.unique(coll, nodes = nodes)
 
-  }#THEN
+  }
 
   return(coll)
 

@@ -10,7 +10,7 @@
 #' @param covar_alpha sig. level for covariate testing
 #' @param ll_test_approach variation of likelihood test to use; options are "2fold" and "5_5"
 #' @param train_ratio percentage of data used for training dataset
-#' @param standardized standardize data or not?
+#' @param standardized standardize data or not
 #'
 #' @return adjacency matrix of learned DAG
 #' @export

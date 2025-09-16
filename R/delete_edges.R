@@ -142,6 +142,7 @@ prune_dag <- function(data, curr_amat, alpha=0.00001, nodelabels=colnames(data))
     # run gam model
     fm <- get_gam_formula(curr_node, curr_node_pa, k_basis)
     m1 <- mgcv::gam(fm, method = "REML", optimizer = c("outer","newton"), select = TRUE, data=as.data.frame(data), gam.control=gam.control.param)
+
     # check if any variable is insignificant, remove edge if so
     m1_pval <- summary(m1)$s.table[,4]
     insig_edges <- which(m1_pval >= alpha)
