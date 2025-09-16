@@ -42,6 +42,10 @@ jobs:
 
       - uses: r-lib/actions/setup-r-dependencies@v2
         with:
+          packages: |
+            github::itsrainingdata/sparsebnUtils
+            github::itsrainingdata/ccdrAlgorithm
+            github::jirehhuang/phsl
           extra-packages: any::rcmdcheck
           needs: check
 
